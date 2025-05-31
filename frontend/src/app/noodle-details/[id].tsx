@@ -6,8 +6,12 @@ import {
   Image,
   ScrollView,
   StyleSheet,
+  Button,
 } from "react-native";
-import { gql, useQuery } from "@apollo/client";
+import { gql, useQuery, useMutation } from "@apollo/client";
+import useFavourites from "../../hooks/useFavorites";
+
+// --- GraphQL Queries and Mutations ---
 
 const GET_NOODLE_DETAILS = gql`
   query GetNoodleDetails($id: ID!) {
@@ -19,6 +23,7 @@ const GET_NOODLE_DETAILS = gql`
       originCountry
       rating
       imageURL
+      reviewsCount
       category {
         name
       }
@@ -26,11 +31,45 @@ const GET_NOODLE_DETAILS = gql`
   }
 `;
 
+const LEAVE_REVIEW = gql`
+  mutation LeaveReview($id: ID!) {
+    leaveReview(id: $id) {
+      id
+      reviewsCount
+    }
+  }
+`;
+
+// --- Component ---
+
 export default function NoodlesDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { loading, error, data } = useQuery(GET_NOODLE_DETAILS, {
     variables: { id },
     skip: !id,
+  });
+
+  const { addFavourite, removeFavourite, isFavourite } = useFavourites();
+
+  const [leaveReview] = useMutation(LEAVE_REVIEW, {
+    variables: { id },
+    optimisticResponse: {
+      leaveReview: {
+        id,
+        reviewsCount: (data?.instantNoodle?.reviewsCount ?? 0) + 1,
+        __typename: "InstantNoodle",
+      },
+    },
+    update(cache, { data: mutationData }) {
+      cache.modify({
+        id: cache.identify({ id, __typename: "InstantNoodle" }),
+        fields: {
+          reviewsCount() {
+            return mutationData?.leaveReview?.reviewsCount;
+          },
+        },
+      });
+    },
   });
 
   if (loading) {
@@ -50,6 +89,7 @@ export default function NoodlesDetails() {
   }
 
   const noodle = data.instantNoodle;
+  const isFav = isFavourite(noodle.id); // ✅ safe to access now
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -72,9 +112,21 @@ export default function NoodlesDetails() {
         <Text style={styles.tag}>⭐ {noodle.rating}/10</Text>
         <Text style={styles.tag}>📦 {noodle.category?.name}</Text>
       </View>
+
+      {/* Reviews Count & Button */}
+      <Text style={styles.reviewText}>Reviews: {noodle.reviewsCount}</Text>
+      <Button title="Leave Review" onPress={() => leaveReview()} />
+      <Button
+        title={isFav ? "Remove from Favourites" : "Add to Favourites"}
+        onPress={() =>
+          isFav ? removeFavourite(noodle.id) : addFavourite(noodle.id)
+        }
+      />
     </ScrollView>
   );
 }
+
+// --- Styles ---
 
 const styles = StyleSheet.create({
   container: {
@@ -116,5 +168,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginRight: 8,
     marginBottom: 8,
+  },
+  reviewText: {
+    fontSize: 16,
+    marginVertical: 12,
   },
 });

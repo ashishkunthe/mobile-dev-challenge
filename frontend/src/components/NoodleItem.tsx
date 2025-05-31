@@ -7,7 +7,7 @@ import {
   Pressable,
   StyleSheet,
 } from "react-native";
-import { Noodle } from "../types";
+import Noodle from "../types";
 import { router } from "expo-router";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 
@@ -27,7 +27,7 @@ type Props = {
   name: string;
 };
 
-export function NoodleItem({ id, name }: Props) {
+export default function NoodleItem({ id, name }: Props) {
   const { loading, data } = useQuery<{ instantNoodle: Noodle }>(
     GET_NOODLE_DETAILS,
     {

@@ -1,4 +1,4 @@
-export type Noodle = {
+type Noodle = {
   id: string;
   name: string;
   brand: string;
@@ -10,3 +10,5 @@ export type Noodle = {
   };
   imageURL: string;
 };
+
+export default Noodle;
